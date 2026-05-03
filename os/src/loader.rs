@@ -49,8 +49,14 @@ impl UserStack {
 }
 
 /// Get base address of app i.
-fn get_base_i(app_id: usize) -> usize {
+pub fn get_base_i(app_id: usize) -> usize {
     APP_BASE_ADDRESS + app_id * APP_SIZE_LIMIT
+}
+
+/// Get the user stack range of app i.
+pub fn get_user_stack_range(app_id: usize) -> (usize, usize) {
+    let bottom = USER_STACK[app_id].data.as_ptr() as usize;
+    (bottom, bottom + USER_STACK_SIZE)
 }
 
 /// Get the total number of applications.

@@ -19,7 +19,7 @@ use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
 use lazy_static::*;
 use switch::__switch;
-pub use task::{TaskControlBlock, TaskStatus};
+pub use task::{SyscallInfo, TaskControlBlock, TaskStatus, MAX_SYSCALL_NUM};
 
 pub use context::TaskContext;
 
@@ -54,6 +54,7 @@ lazy_static! {
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
+            syscall_info: [SyscallInfo { id: 0, times: 0 }; MAX_SYSCALL_NUM],
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
@@ -102,6 +103,43 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].task_status = TaskStatus::Exited;
+    }
+
+    fn record_current_syscall(&self, syscall_id: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        let table = &mut inner.tasks[current].syscall_info;
+
+        for item in table.iter_mut() {
+            if item.times != 0 && item.id == syscall_id {
+                item.times += 1;
+                return;
+            }
+        }
+
+        for item in table.iter_mut() {
+            if item.times == 0 {
+                item.id = syscall_id;
+                item.times = 1;
+                return;
+            }
+        }
+    }
+
+    fn current_syscall_times(&self, syscall_id: usize) -> usize {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current]
+            .syscall_info
+            .iter()
+            .find(|item| item.times != 0 && item.id == syscall_id)
+            .map(|item| item.times)
+            .unwrap_or(0)
+    }
+
+    fn current_task_id(&self) -> usize {
+        let inner = self.inner.exclusive_access();
+        inner.current_task
     }
 
     /// Find next task to run and return task id.
@@ -156,6 +194,21 @@ fn mark_current_suspended() {
 /// Change the status of current `Running` task into `Exited`.
 fn mark_current_exited() {
     TASK_MANAGER.mark_current_exited();
+}
+
+/// Record one syscall invocation for the current task.
+pub fn record_current_syscall(syscall_id: usize) {
+    TASK_MANAGER.record_current_syscall(syscall_id);
+}
+
+/// Query how many times the current task has invoked a syscall.
+pub fn current_syscall_times(syscall_id: usize) -> usize {
+    TASK_MANAGER.current_syscall_times(syscall_id)
+}
+
+/// Get the current running task id.
+pub fn current_task_id() -> usize {
+    TASK_MANAGER.current_task_id()
 }
 
 /// Suspend the current 'Running' task and run the next task in task list.

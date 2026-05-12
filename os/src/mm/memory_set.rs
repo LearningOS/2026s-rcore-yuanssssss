@@ -63,6 +63,54 @@ impl MemorySet {
             None,
         );
     }
+    /// Remove a framed area or a subrange from an existing area.
+    pub fn remove_framed_area(&mut self, start_va: VirtAddr, end_va: VirtAddr) -> bool {
+        let start_vpn = start_va.floor();
+        let end_vpn = end_va.ceil();
+        let Some(idx) = self.areas.iter().position(|area| {
+            area.vpn_range.get_start() <= start_vpn && end_vpn <= area.vpn_range.get_end()
+        }) else {
+            return false;
+        };
+
+        let mut area = self.areas.remove(idx);
+        let area_start = area.vpn_range.get_start();
+        let area_end = area.vpn_range.get_end();
+        let map_type = area.map_type;
+        let map_perm = area.map_perm;
+
+        for vpn in VPNRange::new(start_vpn, end_vpn) {
+            area.unmap_one(&mut self.page_table, vpn);
+        }
+
+        let mut insert_idx = idx;
+        if area_start < start_vpn {
+            let mut left_area = MapArea::new(area_start.into(), start_vpn.into(), map_type, map_perm);
+            if map_type == MapType::Framed {
+                for vpn in VPNRange::new(area_start, start_vpn) {
+                    if let Some(frame) = area.data_frames.remove(&vpn) {
+                        left_area.data_frames.insert(vpn, frame);
+                    }
+                }
+            }
+            self.areas.insert(insert_idx, left_area);
+            insert_idx += 1;
+        }
+
+        if end_vpn < area_end {
+            let mut right_area = MapArea::new(end_vpn.into(), area_end.into(), map_type, map_perm);
+            if map_type == MapType::Framed {
+                for vpn in VPNRange::new(end_vpn, area_end) {
+                    if let Some(frame) = area.data_frames.remove(&vpn) {
+                        right_area.data_frames.insert(vpn, frame);
+                    }
+                }
+            }
+            self.areas.insert(insert_idx, right_area);
+        }
+
+        true
+    }
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {

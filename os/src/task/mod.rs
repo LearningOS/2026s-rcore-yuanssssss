@@ -15,6 +15,7 @@ mod switch;
 mod task;
 
 use crate::loader::{get_app_data, get_num_app};
+use crate::mm::{MapPermission, VirtAddr, VirtPageNum};
 use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
 use alloc::vec::Vec;
@@ -133,6 +134,53 @@ impl TaskManager {
         inner.tasks[cur].change_program_brk(size)
     }
 
+    /// Record one syscall invocation for the current task.
+    pub fn record_current_syscall(&self, syscall_id: usize) {
+        if syscall_id >= crate::config::MAX_SYSCALL_NUM {
+            return;
+        }
+        let mut inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        inner.tasks[cur].syscall_times[syscall_id] += 1;
+    }
+
+    /// Query how many times the current task has invoked a syscall.
+    pub fn current_syscall_times(&self, syscall_id: usize) -> usize {
+        if syscall_id >= crate::config::MAX_SYSCALL_NUM {
+            return 0;
+        }
+        let inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        inner.tasks[cur].syscall_times[syscall_id]
+    }
+
+    /// Map a user memory area for the current task.
+    pub fn mmap_current(&self, start: usize, len: usize, permission: MapPermission) -> bool {
+        let mut inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        let memory_set = &mut inner.tasks[cur].memory_set;
+        let start_va = VirtAddr::from(start);
+        let end_va = VirtAddr::from(start + len);
+
+        for vpn in start_va.floor().0..end_va.ceil().0 {
+            if memory_set.translate(VirtPageNum(vpn)).is_some() {
+                return false;
+            }
+        }
+
+        memory_set.insert_framed_area(start_va, end_va, permission);
+        true
+    }
+
+    /// Unmap a user memory area for the current task.
+    pub fn munmap_current(&self, start: usize, len: usize) -> bool {
+        let mut inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        inner.tasks[cur]
+            .memory_set
+            .remove_framed_area(VirtAddr::from(start), VirtAddr::from(start + len))
+    }
+
     /// Switch current `Running` task to the task we have found,
     /// or there is no `Ready` task and we can exit with all applications completed
     fn run_next_task(&self) {
@@ -201,4 +249,24 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 /// Change the current 'Running' task's program break
 pub fn change_program_brk(size: i32) -> Option<usize> {
     TASK_MANAGER.change_current_program_brk(size)
+}
+
+/// Record one syscall invocation for the current task.
+pub fn record_current_syscall(syscall_id: usize) {
+    TASK_MANAGER.record_current_syscall(syscall_id)
+}
+
+/// Query how many times the current task has invoked a syscall.
+pub fn current_syscall_times(syscall_id: usize) -> usize {
+    TASK_MANAGER.current_syscall_times(syscall_id)
+}
+
+/// Map a user memory area for the current task.
+pub fn mmap_current(start: usize, len: usize, permission: MapPermission) -> bool {
+    TASK_MANAGER.mmap_current(start, len, permission)
+}
+
+/// Unmap a user memory area for the current task.
+pub fn munmap_current(start: usize, len: usize) -> bool {
+    TASK_MANAGER.munmap_current(start, len)
 }

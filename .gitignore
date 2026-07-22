@@ -2,6 +2,8 @@
 .merge_chain_state
 !.github/*
 !.vscode/settings.json
+!.cargo/
+!.cargo/config.toml
 .idea
 Cargo.lock
 target

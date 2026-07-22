@@ -33,6 +33,22 @@ $ git clone https://github.com/LearningOS/2026s-rcore-[YOUR_USER_NAME].git
 $ cd 2026s-rcore-[YOUR_USER_NAME]
 ```
 
+## Rust Mirrors
+
+This repository uses a project-local Cargo mirror in `.cargo/config.toml` for downloading crates.
+
+For downloading Rust toolchains and components with `rustup`, load the mirror environment variables in the current shell:
+
+```bash
+$ source scripts/rust-env.sh
+```
+
+To switch to another nightly toolchain and install the required components:
+
+```bash
+$ scripts/use-nightly.sh 2024-12-01
+```
+
 ## Build & Run
 
 ```bash

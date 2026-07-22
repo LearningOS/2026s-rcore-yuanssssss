@@ -1,15 +1,15 @@
 #![no_std]
 #![no_main]
-
 #[macro_use]
-extern crate user_lib;
+extern crate user;
+
 
 const SIZE: usize = 10;
 const P: u32 = 3;
 const STEP: usize = 100000;
 const MOD: u32 = 10007;
 
-#[unsafe(no_mangle)]
+#[no_mangle]
 fn main() -> i32 {
     let mut pow = [0u32; SIZE];
     let mut index: usize = 0;

@@ -1,12 +1,10 @@
 #![no_std]
 #![no_main]
-
 #[macro_use]
-extern crate user_lib;
-
+extern crate user;
+// user/src/bin/03priv_inst.rs
 use core::arch::asm;
-
-#[unsafe(no_mangle)]
+#[no_mangle]
 fn main() -> i32 {
     println!("Try to execute privileged instruction in U Mode");
     println!("Kernel should kill this application!");

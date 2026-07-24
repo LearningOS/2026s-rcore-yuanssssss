@@ -19,7 +19,7 @@ use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
 use lazy_static::*;
 use switch::__switch;
-pub use task::{TaskControlBlock, TaskStatus};
+pub use task::{SyscallStats, TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
 
@@ -51,10 +51,11 @@ lazy_static! {
     /// Global variable: TASK_MANAGER
     pub static ref TASK_MANAGER: TaskManager = {
         let num_app = get_num_app();
-        let mut tasks = [TaskControlBlock {
+        let mut tasks = core::array::from_fn(|_| TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
-        }; MAX_APP_NUM];
+            syscall_stats: SyscallStats::new(),
+        });
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
             task.task_status = TaskStatus::Ready;
@@ -168,4 +169,20 @@ pub fn suspend_current_and_run_next() {
 pub fn exit_current_and_run_next() {
     mark_current_exited();
     run_next_task();
+}
+
+/// Record one invocation of a system call by the current task.
+pub fn record_current_task_syscall(syscall_id: usize) {
+    let mut inner = TASK_MANAGER.inner.exclusive_access();
+    let current_task_id = inner.current_task;
+    inner.tasks[current_task_id]
+        .syscall_stats
+        .record(syscall_id);
+}
+
+/// Return how many times the current task invoked a system call.
+pub fn current_task_syscall_count(syscall_id: usize) -> isize {
+    let inner = TASK_MANAGER.inner.exclusive_access();
+    let current_task_id = inner.current_task;
+    inner.tasks[current_task_id].syscall_stats.count(syscall_id) as isize
 }

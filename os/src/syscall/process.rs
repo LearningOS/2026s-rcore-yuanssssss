@@ -2,6 +2,7 @@
 use crate::{
     task::{current_task_syscall_count, exit_current_and_run_next, suspend_current_and_run_next},
     timer::get_time_us,
+    config::APP_SIZE_LIMIT,
 };
 
 #[repr(C)]
@@ -38,8 +39,23 @@ pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
     0
 }
 
-// TODO: implement the syscall
-pub fn sys_trace(_trace_request: usize, _id: usize, _data: usize) -> isize {
+const TRACE_READ: usize = 0;
+const TRACE_WRITE: usize = 1;
+const TRACE_SYSCALL: usize = 2;
+
+fn current_app_ranges() -> ((usize, usize), (usize, usize)) {
+    let task_id = current_task_id();
+    let app_base = get_base_i(task_id);
+    let app_range = (app_base, app_base + APP_SIZE_LIMIT);
+    let stack_range = get_user_stack_range(task_id);
+    (app_range, stack_range)
+}
+
+fn in_range(addr: usize, range: (usize, usize)) -> bool {
+    range.0 <= addr && addr < range.1
+}
+
+pub fn sys_trace(trace_request: usize, id: usize, _data: usize) -> isize {
     trace!("kernel: sys_trace");
     // 0 read current task memory value, _id represents the address of the memory address, as a *const u8  return the value of the memory address, as a isize
     //1 write current task memory value, _id represents the address of the memory address, as a *mut u8, _data represents the value to be written, return 0

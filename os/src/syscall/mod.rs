@@ -10,6 +10,8 @@
 //! `sys_` then the name of the syscall. You can find functions like this in
 //! submodules, and you should also implement syscalls this way.
 
+use crate::task::record_current_syscall;
+
 /// write syscall
 const SYSCALL_WRITE: usize = 64;
 /// exit syscall
@@ -21,12 +23,17 @@ const SYSCALL_GET_TIME: usize = 169;
 /// trace syscall
 const SYSCALL_TRACE: usize = 410;
 
+
+
+
+
 mod fs;
 mod process;
 
 use crate::task::record_current_task_syscall;
 use fs::*;
 use process::*;
+
 
 /// handle syscall exception with `syscall_id` and other arguments
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {

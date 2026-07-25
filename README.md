@@ -10,6 +10,8 @@
 
 - Detail Book [rCore-Tutorial-Book-v3](https://rcore-os.github.io/rCore-Tutorial-Book-v3/)
 
+- Local Guide: [使用 VS Code 调试 rCore](docs/vscode-debugging.md)
+
 ## OS API docs of rCore Tutorial Code
 
 - [OS API docs of ch1](https://learningos.github.io/rCore-Tutorial-Code/ch1/os/index.html)

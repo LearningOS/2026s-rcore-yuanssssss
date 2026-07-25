@@ -1,0 +1,36 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug rCore kernel (QEMU)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/os/target/riscv64gc-unknown-none-elf/release/os",
+            "cwd": "${workspaceFolder}/os",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb-multiarch",
+            "miDebuggerServerAddress": "127.0.0.1:1234",
+            "stopAtEntry": false,
+            "externalConsole": false,
+            "preLaunchTask": "rCore: Start QEMU GDB server",
+            "postDebugTask": "rCore: Stop QEMU GDB server",
+            "setupCommands": [
+                {
+                    "description": "Set the target architecture",
+                    "text": "set architecture riscv:rv64",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Enable source and assembly view",
+                    "text": "set disassemble-next-line on",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Stop at the Rust kernel entry point",
+                    "text": "break rust_main",
+                    "ignoreFailures": false
+                }
+            ]
+        }
+    ]
+}
